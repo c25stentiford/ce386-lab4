@@ -2,7 +2,6 @@
 printing if the picture is of a cat or a dog."""
 
 import cv2
-# from tensorflow import expand_dims
 from ai_edge_litert.interpreter import Interpreter, SignatureRunner
 import sys
 import numpy as np
@@ -17,14 +16,13 @@ def get_litert_runner(model_path: str) -> SignatureRunner:
         SignatureRunner: An AI-Edge LiteRT runner that can be invoked for inference."""
 
     interpreter = Interpreter(model_path=model_path)
-    # Allocate the model in memory. Should always be called before doing inference
+    # Allocate the model in memory
     interpreter.allocate_tensors()
     print(f"Allocated LiteRT with signatures {interpreter.get_signature_list()}")
 
     # Create callable object that runs inference based on signatures
     # 'serving_default' is default... but in production should parse from signature
     return interpreter.get_signature_runner("serving_default")
-    # return interpreter
 
 
 # Convert picture to numpy for model ingest
@@ -32,9 +30,10 @@ def convert(frame) -> np.ndarray:
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return np.array(frame_rgb, dtype=np.uint8)
 
+
 def main():
 
-    # Verify arguments
+    # Verify arguments and print usage if not correct
     if len(sys.argv) != 2:
         print("Usage: python " + sys.argv[0] + " <model_path.tflite>")
         exit(1)
@@ -42,13 +41,6 @@ def main():
     # Create LiteRT SignatureRunner from model path given as argument
     model_path = sys.argv[1]
     runner = get_litert_runner(model_path)
-    # interpreter = get_litert_runner(model_path)
-    # input_details = interpreter.get_input_details()
-    # output_details = interpreter.get_output_details()
-
-    # Print input and output details of runner
-    # print(f"Input details:\n{runner.get_input_details()}")
-    # print(f"Output details:\n{runner.get_output_details()}")
 
     # Init webcam
     webcam = cv2.VideoCapture(0)  # 0 is default camera index
@@ -56,15 +48,20 @@ def main():
     while True:
         ret, frame = webcam.read()
         if ret:
+            # convert image
             img_array = convert(frame)
-            
-            # scaled = Image.open("cat.jpeg").resize((150,150), resample=Image.Resampling.LANCZOS)
-            scaled = Image.fromarray(img_array).resize((150,150), resample=Image.Resampling.LANCZOS)
+            # read image into pillow and resize
+            scaled = Image.fromarray(img_array).resize(
+                (150, 150), resample=Image.Resampling.LANCZOS
+            )
+            # convert back into uint8 array
             input_data = np.array(scaled, dtype=np.uint8)
+            # "It's not TensorFlow without expand_dims(tm)!"
             expanded = np.expand_dims(input_data, 0)
-            # print(expanded)
+            # execute inference
             output = runner(catdog_input=expanded)
-            if output['output_0'][0] > 0:
+            # print result
+            if output["output_0"][0] > 0:
                 print("Dog")
             else:
                 print("Cat")
